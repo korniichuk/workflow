@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a4
+# Version: 0.1a5
 
 import glob
 import os
 from subprocess import check_call
 
 import arrow
+import boto3
 import luigi
 from luigi.contrib.external_program import ExternalProgramTask
+from luigi.contrib.s3 import S3Target
 import pandas as pd
 
 
@@ -109,11 +111,47 @@ class MergeCSVs(luigi.Task):
 
 
 class CalcOrders(luigi.Task):
-    pass
+    date = arrow.utcnow().format('YYYYMMDD')
+    dst_file_name = 'orders_{}.csv'.format(date)
+
+    def requires(self):
+        return MergeCSVs()
+
+    def run(self):
+        df = pd.read_csv(self.input().path, parse_dates=['date'])
+        df = df.groupby('email').count().sort_values('email')
+        result = pd.DataFrame()
+        result['email'] = df.index
+        result['orders'] = df.date.values
+        dts_dirname = os.path.dirname(self.input().path)
+        dst = os.path.join(dts_dirname, self.dst_file_name)
+        result.to_csv(dst, index=False)
+
+    def output(self):
+        dts_dirname = os.path.dirname(self.input().path)
+        dst = os.path.join(dts_dirname, self.dst_file_name)
+        return luigi.LocalTarget(dst)
 
 
 class UploadToS3(luigi.Task):
-    pass
+    bucket_name = 'korniichuk.demo'
+    dst_dirname = 'workflow/output'
+
+    def requires(self):
+        return CalcOrders()
+
+    def run(self):
+        s3 = boto3.resource('s3')
+        src = self.input().path
+        dst_filename = os.path.basename(self.input().path)
+        dst = os.path.join(self.dst_dirname, dst_filename)
+        s3.Bucket(self.bucket_name).upload_file(src, dst)
+
+    def output(self):
+        dst_filename = os.path.basename(self.input().path)
+        dst = os.path.join('s3://korniichuk.demo/workflow/output',
+                           dst_filename)
+        return S3Target(dst)
 
 
 class Clean(luigi.Task):
