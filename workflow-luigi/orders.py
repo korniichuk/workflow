@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a2
+# Version: 0.1a3
 
 import os
 from subprocess import check_call
 
 import luigi
 from luigi.contrib.external_program import ExternalProgramTask
+import pandas as pd
 
 
 class DownloadFromS3(ExternalProgramTask):
@@ -53,29 +54,33 @@ class Decompress(luigi.Task):
         return luigi.LocalTarget(self.dst)
 
 
-def uncompress(dir_abs_path):
-    cwd = os.getcwd()
-
-    os.chdir(dir_abs_path)
-    for root, dirs, files in os.walk(dir_abs_path, topdown=False):
-        for name in files:
-            if name.endswith('.gz'):
-                command = ['gunzip', '--keep', '--force', name]
-                try:
-                    check_call(command, shell=False)
-                except BaseException:
-                    msg = 'Error: {} file uncompression is failed.'.format(
-                            name)
-                    print(msg)
-                else:
-                    print('{} file uncompressed to {}'.format(
-                            name, name.replace('.gz', '')))
-    # Reset cwd
-    os.chdir(cwd)
-
-
 class PreprocessJSONs(luigi.Task):
-    pass
+    dst = os.path.abspath('csv')
+
+    def requires(self):
+        return Decompress()
+
+    def run(self):
+        os.makedirs(self.dst)
+        cwd = os.getcwd()
+        dir_abs_path = self.input().path
+        os.chdir(dir_abs_path)
+        for root, dirs, files in os.walk(dir_abs_path, topdown=False):
+            for name in files:
+                ext = os.path.splitext(name)[1]
+                if ext == '':
+                    df = pd.read_json(name, lines=True, convert_dates=['date'])
+                    tmp = df[['date', 'gross', 'net', 'tax', 'email']]
+                    filename = name + '.csv'
+                    file_abs_path = os.path.join(self.dst, filename)
+                    tmp.to_csv(file_abs_path, index=False)
+                    msg = 'Preprocessed data saved to {} file'
+                    print(msg)
+        # Reset cwd
+        os.chdir(cwd)
+
+    def output(self):
+        return luigi.LocalTarget(self.dst)
 
 
 class MergeCSVs(luigi.Task):
