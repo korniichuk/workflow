@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a5
+# Version: 0.1a6
 
 import glob
 import os
@@ -16,7 +16,7 @@ import pandas as pd
 
 class DownloadFromS3(ExternalProgramTask):
     src = 's3://korniichuk.demo/workflow/input'
-    dst = 'gz'
+    dst = '/tmp/luigi-orders/gz'
 
     def program_args(self):
         return ['aws', 's3', 'sync', self.src, self.dst]
@@ -26,7 +26,7 @@ class DownloadFromS3(ExternalProgramTask):
 
 
 class Decompress(luigi.Task):
-    dst = os.path.abspath('json')
+    dst = '/tmp/luigi-orders/json'
 
     def requires(self):
         return DownloadFromS3()
@@ -59,7 +59,7 @@ class Decompress(luigi.Task):
 
 
 class PreprocessJSONs(luigi.Task):
-    dst = os.path.abspath('csv')
+    dst = '/tmp/luigi-orders/csv'
 
     def requires(self):
         return Decompress()
@@ -154,8 +154,13 @@ class UploadToS3(luigi.Task):
         return S3Target(dst)
 
 
-class Clean(luigi.Task):
-    pass
+class Postprocess(ExternalProgramTask):
+    def requires(self):
+        return UploadToS3()
+
+    def program_args(self):
+        path = '/tmp/luigi-orders'
+        return ['rm', '-rf', path]
 
 
 if __name__ == '__main__':
