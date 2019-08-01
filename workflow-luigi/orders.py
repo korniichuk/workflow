@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a3
+# Version: 0.1a4
 
+import glob
 import os
 from subprocess import check_call
 
+import arrow
 import luigi
 from luigi.contrib.external_program import ExternalProgramTask
 import pandas as pd
@@ -70,10 +72,10 @@ class PreprocessJSONs(luigi.Task):
                 ext = os.path.splitext(name)[1]
                 if ext == '':
                     df = pd.read_json(name, lines=True, convert_dates=['date'])
-                    tmp = df[['date', 'gross', 'net', 'tax', 'email']]
+                    df = df[['date', 'gross', 'net', 'tax', 'email']]
                     filename = name + '.csv'
                     file_abs_path = os.path.join(self.dst, filename)
-                    tmp.to_csv(file_abs_path, index=False)
+                    df.to_csv(file_abs_path, index=False)
                     msg = 'Preprocessed data saved to {} file'
                     print(msg)
         # Reset cwd
@@ -84,7 +86,26 @@ class PreprocessJSONs(luigi.Task):
 
 
 class MergeCSVs(luigi.Task):
-    pass
+    date = arrow.utcnow().format('YYYYMMDD')
+    dst_file_name = 'transactions_{}.csv'.format(date)
+
+    def requires(self):
+        return PreprocessJSONs()
+
+    def run(self):
+        cwd = os.getcwd()
+        dir_abs_path = self.input().path
+        os.chdir(dir_abs_path)
+        csvs = [i for i in glob.glob('*.{}'.format('csv'))]
+        df = pd.concat([pd.read_csv(csv) for csv in csvs])
+        dst = os.path.join(self.input().path, self.dst_file_name)
+        df.to_csv(dst, index=False)
+        # Reset cwd
+        os.chdir(cwd)
+
+    def output(self):
+        dst = os.path.join(self.input().path, self.dst_file_name)
+        return luigi.LocalTarget(dst)
 
 
 class CalcOrders(luigi.Task):
