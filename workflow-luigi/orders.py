@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a6
+# Version: 0.1a7
 
 import glob
 import os
@@ -110,6 +110,27 @@ class MergeCSVs(luigi.Task):
         return luigi.LocalTarget(dst)
 
 
+class UploadTransactionsToS3(luigi.Task):
+    bucket_name = 'korniichuk.demo'
+    dst_dirname = 'workflow/output'
+
+    def requires(self):
+        return MergeCSVs()
+
+    def run(self):
+        s3 = boto3.resource('s3')
+        src = self.input().path
+        dst_filename = os.path.basename(self.input().path)
+        dst = os.path.join(self.dst_dirname, dst_filename)
+        s3.Bucket(self.bucket_name).upload_file(src, dst)
+
+    def output(self):
+        dst_filename = os.path.basename(self.input().path)
+        dst = os.path.join('s3://korniichuk.demo/workflow/output',
+                           dst_filename)
+        return S3Target(dst)
+
+
 class CalcOrders(luigi.Task):
     date = arrow.utcnow().format('YYYYMMDD')
     dst_file_name = 'orders_{}.csv'.format(date)
@@ -133,7 +154,7 @@ class CalcOrders(luigi.Task):
         return luigi.LocalTarget(dst)
 
 
-class UploadToS3(luigi.Task):
+class UploadOrdersToS3(luigi.Task):
     bucket_name = 'korniichuk.demo'
     dst_dirname = 'workflow/output'
 
@@ -154,9 +175,9 @@ class UploadToS3(luigi.Task):
         return S3Target(dst)
 
 
-class Postprocess(ExternalProgramTask):
+class Orders(ExternalProgramTask):
     def requires(self):
-        return UploadToS3()
+        return [UploadTransactionsToS3(), UploadOrdersToS3()]
 
     def program_args(self):
         path = '/tmp/luigi-orders'
