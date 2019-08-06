@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a4
+# Version: 0.1a5
 
+import glob
 import datetime
 import os
 from subprocess import check_call
@@ -9,6 +10,7 @@ from subprocess import check_call
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
+import arrow
 import pandas as pd
 
 
@@ -62,6 +64,23 @@ def preprocess_jsons():
     return dst
 
 
+def merge_csvs():
+    src = '/tmp/airflow-orders/csv'
+    date = arrow.utcnow().format('YYYYMMDD')
+    dst_file_name = 'transactions_{}.csv'.format(date)
+    dst = os.path.join(src, dst_file_name)
+    if os.path.exists(dst) and os.path.isfile(dst):
+        return dst
+    cwd = os.getcwd()
+    os.chdir(src)
+    csvs = [i for i in glob.glob('*.{}'.format('csv'))]
+    df = pd.concat([pd.read_csv(csv) for csv in csvs])
+    df.to_csv(dst, index=False)
+    # Reset cwd
+    os.chdir(cwd)
+    return dst
+
+
 default_args = {
     'owner': 'korniichuk',
     'start_date': datetime.datetime(2019, 8, 5)
@@ -80,5 +99,7 @@ with DAG('orders',
                                 python_callable=decompress)
     preprocess_jsons = PythonOperator(task_id='preprocess_jsons',
                                       python_callable=preprocess_jsons)
+    merge_csvs = PythonOperator(task_id='merge_csvs',
+                                python_callable=merge_csvs)
 
-download_from_s3 >> decompress >> preprocess_jsons
+download_from_s3 >> decompress >> preprocess_jsons >> merge_csvs
