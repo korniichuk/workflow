@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a3
+# Version: 0.1a4
 
 import datetime
 import os
@@ -9,6 +9,7 @@ from subprocess import check_call
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
+import pandas as pd
 
 
 def decompress():
@@ -37,6 +38,30 @@ def decompress():
     return dst
 
 
+def preprocess_jsons():
+    src = '/tmp/airflow-orders/json'
+    dst = '/tmp/airflow-orders/csv'
+    if os.path.exists(dst) and os.path.isdir(dst):
+        return dst
+    os.makedirs(dst)
+    cwd = os.getcwd()
+    os.chdir(src)
+    for root, dirs, files in os.walk(src, topdown=False):
+        for name in files:
+            ext = os.path.splitext(name)[1]
+            if ext == '':
+                df = pd.read_json(name, lines=True, convert_dates=['date'])
+                df = df[['date', 'gross', 'net', 'tax', 'email']]
+                filename = name + '.csv'
+                file_abs_path = os.path.join(dst, filename)
+                df.to_csv(file_abs_path, index=False)
+                msg = 'Preprocessed data saved to {} file'
+                print(msg)
+    # Reset cwd
+    os.chdir(cwd)
+    return dst
+
+
 default_args = {
     'owner': 'korniichuk',
     'start_date': datetime.datetime(2019, 8, 5)
@@ -53,5 +78,7 @@ with DAG('orders',
                                     bash_command=command)
     decompress = PythonOperator(task_id='decompress',
                                 python_callable=decompress)
+    preprocess_jsons = PythonOperator(task_id='preprocess_jsons',
+                                      python_callable=preprocess_jsons)
 
-download_from_s3 >> decompress
+download_from_s3 >> decompress >> preprocess_jsons
