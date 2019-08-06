@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a1
+# Version: 0.1a2
 
 import datetime
 
@@ -14,26 +14,16 @@ def example_func():
 
 
 default_args = {
-    'owner': 'korniichuk'
+    'owner': 'korniichuk',
+    'start_date': datetime.datetime(2019, 8, 5)
 }
 
-dag = DAG(
-    dag_id='orders',
-    schedule_interval='@daily',
-    start_date=datetime.datetime(2019, 8, 5),
-    default_args=default_args
-)
+with DAG('orders',
+         default_args=default_args,
+         schedule_interval='@daily') as dag:
 
-task1 = DummyOperator(
-    task_id='task1',
-    dag=dag
-)
+    task1 = DummyOperator(task_id='task1')
+    task2 = PythonOperator(task_id='task2',
+                           python_callable=example_func)
 
-task2 = PythonOperator(
-    task_id='task2',
-    dag=dag,
-    default_args=default_args,
-    python_callable=example_func
-)
-
-dag.set_dependency('task1', 'task2')
+task1 >> task2
