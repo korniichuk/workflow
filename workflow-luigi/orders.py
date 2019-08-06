@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a8
+# Version: 0.1a9
 
 import glob
 import os
@@ -89,7 +89,7 @@ class PreprocessJSONs(luigi.Task):
 
 class MergeCSVs(luigi.Task):
     date = arrow.utcnow().format('YYYYMMDD')
-    dst_file_name = 'transactions_{}.csv'.format(date)
+    dst_filename = 'transactions_{}.csv'.format(date)
 
     def requires(self):
         return PreprocessJSONs()
@@ -100,13 +100,13 @@ class MergeCSVs(luigi.Task):
         os.chdir(dir_abs_path)
         csvs = [i for i in glob.glob('*.{}'.format('csv'))]
         df = pd.concat([pd.read_csv(csv) for csv in csvs])
-        dst = os.path.join(self.input().path, self.dst_file_name)
+        dst = os.path.join(self.input().path, self.dst_filename)
         df.to_csv(dst, index=False)
         # Reset cwd
         os.chdir(cwd)
 
     def output(self):
-        dst = os.path.join(self.input().path, self.dst_file_name)
+        dst = os.path.join(self.input().path, self.dst_filename)
         return luigi.LocalTarget(dst)
 
 
@@ -133,7 +133,7 @@ class UploadTransactionsToS3(luigi.Task):
 
 class CalcOrders(luigi.Task):
     date = arrow.utcnow().format('YYYYMMDD')
-    dst_file_name = 'orders_{}.csv'.format(date)
+    dst_filename = 'orders_{}.csv'.format(date)
 
     def requires(self):
         return MergeCSVs()
@@ -145,12 +145,12 @@ class CalcOrders(luigi.Task):
         result['email'] = df.index
         result['orders'] = df.date.values
         dts_dirname = os.path.dirname(self.input().path)
-        dst = os.path.join(dts_dirname, self.dst_file_name)
+        dst = os.path.join(dts_dirname, self.dst_filename)
         result.to_csv(dst, index=False)
 
     def output(self):
         dts_dirname = os.path.dirname(self.input().path)
-        dst = os.path.join(dts_dirname, self.dst_file_name)
+        dst = os.path.join(dts_dirname, self.dst_filename)
         return luigi.LocalTarget(dst)
 
 
