@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a5
+# Version: 0.1a6
 
 import glob
 import datetime
@@ -11,6 +11,7 @@ from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 import arrow
+import boto3
 import pandas as pd
 
 
@@ -67,8 +68,8 @@ def preprocess_jsons():
 def merge_csvs():
     src = '/tmp/airflow-orders/csv'
     date = arrow.utcnow().format('YYYYMMDD')
-    dst_file_name = 'transactions_{}.csv'.format(date)
-    dst = os.path.join(src, dst_file_name)
+    dst_filename = 'transactions_{}.csv'.format(date)
+    dst = os.path.join(src, dst_filename)
     if os.path.exists(dst) and os.path.isfile(dst):
         return dst
     cwd = os.getcwd()
@@ -78,6 +79,19 @@ def merge_csvs():
     df.to_csv(dst, index=False)
     # Reset cwd
     os.chdir(cwd)
+    return dst
+
+
+def upload_transactions_to_s3():
+    s3 = boto3.resource('s3')
+    bucket_name = 'korniichuk.demo'
+    date = arrow.utcnow().format('YYYYMMDD')
+    src_filename = 'transactions_{}.csv'.format(date)
+    src = os.path.join('/tmp/airflow-orders/csv', src_filename)
+    dst_dirname = 'workflow/output'
+    dst_filename = src_filename
+    dst = os.path.join(dst_dirname, dst_filename)
+    s3.Bucket(bucket_name).upload_file(src, dst)
     return dst
 
 
@@ -101,5 +115,9 @@ with DAG('orders',
                                       python_callable=preprocess_jsons)
     merge_csvs = PythonOperator(task_id='merge_csvs',
                                 python_callable=merge_csvs)
+    upload_transactions_to_s3 = PythonOperator(
+            task_id='upload_transactions_to_s3',
+            python_callable=upload_transactions_to_s3)
 
 download_from_s3 >> decompress >> preprocess_jsons >> merge_csvs
+merge_csvs >> upload_transactions_to_s3
