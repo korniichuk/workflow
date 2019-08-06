@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a6
+# Version: 0.1a7
 
 import glob
 import datetime
@@ -86,12 +86,32 @@ def upload_transactions_to_s3():
     s3 = boto3.resource('s3')
     bucket_name = 'korniichuk.demo'
     date = arrow.utcnow().format('YYYYMMDD')
+    src_dirname = '/tmp/airflow-orders/csv'
     src_filename = 'transactions_{}.csv'.format(date)
-    src = os.path.join('/tmp/airflow-orders/csv', src_filename)
+    src = os.path.join(src_dirname, src_filename)
     dst_dirname = 'workflow/output'
     dst_filename = src_filename
     dst = os.path.join(dst_dirname, dst_filename)
     s3.Bucket(bucket_name).upload_file(src, dst)
+    return dst
+
+
+def calc_orders():
+    date = arrow.utcnow().format('YYYYMMDD')
+    src_dirname = '/tmp/airflow-orders/csv'
+    src_filename = 'transactions_{}.csv'.format(date)
+    src = os.path.join(src_dirname, src_filename)
+    dts_dirname = os.path.dirname(src)
+    dst_filename = 'orders_{}.csv'.format(date)
+    dst = os.path.join(dts_dirname, dst_filename)
+    if os.path.exists(dst) and os.path.isfile(dst):
+        return dst
+    df = pd.read_csv(src, parse_dates=['date'])
+    df = df.groupby('email').count().sort_values('email')
+    result = pd.DataFrame()
+    result['email'] = df.index
+    result['orders'] = df.date.values
+    result.to_csv(dst, index=False)
     return dst
 
 
@@ -118,6 +138,9 @@ with DAG('orders',
     upload_transactions_to_s3 = PythonOperator(
             task_id='upload_transactions_to_s3',
             python_callable=upload_transactions_to_s3)
+    calc_orders = PythonOperator(task_id='calc_orders',
+                                 python_callable=calc_orders)
 
 download_from_s3 >> decompress >> preprocess_jsons >> merge_csvs
 merge_csvs >> upload_transactions_to_s3
+merge_csvs >> calc_orders
