@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a7
+# Version: 0.1a8
 
 import glob
 import os
@@ -34,7 +34,7 @@ class Decompress(luigi.Task):
     def run(self):
         os.makedirs(self.dst)
         cwd = os.getcwd()
-        dir_abs_path = os.path.abspath(self.input().path)
+        dir_abs_path = self.input().path
         os.chdir(dir_abs_path)
         for root, dirs, files in os.walk(dir_abs_path, topdown=False):
             for name in files:
