@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a10
+# Version: 0.1a11
 
 import glob
 import datetime
@@ -12,7 +12,26 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 import arrow
 import boto3
+import botocore
 import pandas as pd
+
+
+def exists_in_s3(bucket_name, path):
+    """Does object exist in S3 bucket"""
+
+    s3 = boto3.resource('s3')
+    try:
+        s3.Object(bucket_name, path).load()
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            return False
+        else:
+            msg = 'Error: {} object checking in {} S3 bucket is failed'.format(
+                    path, bucket_name)
+            print(msg)
+            return False
+    else:
+        return True
 
 
 def decompress():
