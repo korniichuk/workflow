@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a11
+# Version: 0.1a12
 
 import glob
 import datetime
@@ -60,8 +60,8 @@ def decompress():
     return dst
 
 
-def preprocess_jsons():
-    src = '/tmp/airflow-orders/json'
+def preprocess_jsons(**context):
+    src = context['ti'].xcom_pull(task_ids='decompress')
     dst = '/tmp/airflow-orders/csv'
     if os.path.exists(dst) and os.path.isdir(dst):
         return dst
@@ -85,8 +85,8 @@ def preprocess_jsons():
     return dst
 
 
-def merge_csvs():
-    src = '/tmp/airflow-orders/csv'
+def merge_csvs(**context):
+    src = context['ti'].xcom_pull(task_ids='preprocess_jsons')
     date = arrow.utcnow().format('YYYYMMDD')
     dst_filename = 'transactions_{}.csv'.format(date)
     dst = os.path.join(src, dst_filename)
@@ -102,14 +102,11 @@ def merge_csvs():
     return dst
 
 
-def upload_transactions_to_s3():
+def upload_transactions_to_s3(**context):
     bucket_name = 'korniichuk.demo'
-    date = arrow.utcnow().format('YYYYMMDD')
-    src_dirname = '/tmp/airflow-orders/csv'
-    src_filename = 'transactions_{}.csv'.format(date)
-    src = os.path.join(src_dirname, src_filename)
+    src = context['ti'].xcom_pull(task_ids='merge_csvs')
     dst_dirname = 'workflow/output'
-    dst_filename = src_filename
+    dst_filename = os.path.basename(src)
     dst = os.path.join(dst_dirname, dst_filename)
     if not exists_in_s3(bucket_name, dst):
         s3 = boto3.resource('s3')
@@ -117,12 +114,10 @@ def upload_transactions_to_s3():
     return dst
 
 
-def calc_orders():
+def calc_orders(**context):
+    src = context['ti'].xcom_pull(task_ids='merge_csvs')
+    dts_dirname = os.path.dirname(src)
     date = arrow.utcnow().format('YYYYMMDD')
-    src_dirname = '/tmp/airflow-orders/csv'
-    src_filename = 'transactions_{}.csv'.format(date)
-    src = os.path.join(src_dirname, src_filename)
-    dts_dirname = src_dirname
     dst_filename = 'orders_{}.csv'.format(date)
     dst = os.path.join(dts_dirname, dst_filename)
     if os.path.exists(dst) and os.path.isfile(dst):
@@ -136,14 +131,11 @@ def calc_orders():
     return dst
 
 
-def upload_orders_to_s3():
+def upload_orders_to_s3(**context):
     bucket_name = 'korniichuk.demo'
-    date = arrow.utcnow().format('YYYYMMDD')
-    src_dirname = '/tmp/airflow-orders/csv'
-    src_filename = 'orders_{}.csv'.format(date)
-    src = os.path.join(src_dirname, src_filename)
+    src = context['ti'].xcom_pull(task_ids='calc_orders')
     dst_dirname = 'workflow/output'
-    dst_filename = src_filename
+    dst_filename = os.path.basename(src)
     dst = os.path.join(dst_dirname, dst_filename)
     if not exists_in_s3(bucket_name, dst):
         s3 = boto3.resource('s3')
@@ -168,16 +160,21 @@ with DAG('orders',
     decompress = PythonOperator(task_id='decompress',
                                 python_callable=decompress)
     preprocess_jsons = PythonOperator(task_id='preprocess_jsons',
-                                      python_callable=preprocess_jsons)
+                                      python_callable=preprocess_jsons,
+                                      provide_context=True)
     merge_csvs = PythonOperator(task_id='merge_csvs',
-                                python_callable=merge_csvs)
+                                python_callable=merge_csvs,
+                                provide_context=True)
     upload_transactions_to_s3 = PythonOperator(
             task_id='upload_transactions_to_s3',
-            python_callable=upload_transactions_to_s3)
+            python_callable=upload_transactions_to_s3,
+            provide_context=True)
     calc_orders = PythonOperator(task_id='calc_orders',
-                                 python_callable=calc_orders)
+                                 python_callable=calc_orders,
+                                 provide_context=True)
     upload_orders_to_s3 = PythonOperator(task_id='upload_orders_to_s3',
-                                         python_callable=upload_orders_to_s3)
+                                         python_callable=upload_orders_to_s3,
+                                         provide_context=True)
     path = '/tmp/airflow-orders'
     command = 'rm -rf {}'.format(path)
     clean = BashOperator(task_id='clean', bash_command=command)
