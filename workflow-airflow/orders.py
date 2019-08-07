@@ -77,7 +77,8 @@ def preprocess_jsons():
                 filename = name + '.csv'
                 file_abs_path = os.path.join(dst, filename)
                 df.to_csv(file_abs_path, index=False)
-                msg = 'Preprocessed data saved to {} file'
+                msg = 'Preprocessed data saved to {} file'.format(
+                        file_abs_path)
                 print(msg)
     # Reset cwd
     os.chdir(cwd)
@@ -102,7 +103,6 @@ def merge_csvs():
 
 
 def upload_transactions_to_s3():
-    s3 = boto3.resource('s3')
     bucket_name = 'korniichuk.demo'
     date = arrow.utcnow().format('YYYYMMDD')
     src_dirname = '/tmp/airflow-orders/csv'
@@ -111,7 +111,9 @@ def upload_transactions_to_s3():
     dst_dirname = 'workflow/output'
     dst_filename = src_filename
     dst = os.path.join(dst_dirname, dst_filename)
-    s3.Bucket(bucket_name).upload_file(src, dst)
+    if not exists_in_s3(bucket_name, dst):
+        s3 = boto3.resource('s3')
+        s3.Bucket(bucket_name).upload_file(src, dst)
     return dst
 
 
@@ -135,7 +137,6 @@ def calc_orders():
 
 
 def upload_orders_to_s3():
-    s3 = boto3.resource('s3')
     bucket_name = 'korniichuk.demo'
     date = arrow.utcnow().format('YYYYMMDD')
     src_dirname = '/tmp/airflow-orders/csv'
@@ -144,7 +145,9 @@ def upload_orders_to_s3():
     dst_dirname = 'workflow/output'
     dst_filename = src_filename
     dst = os.path.join(dst_dirname, dst_filename)
-    s3.Bucket(bucket_name).upload_file(src, dst)
+    if not exists_in_s3(bucket_name, dst):
+        s3 = boto3.resource('s3')
+        s3.Bucket(bucket_name).upload_file(src, dst)
     return dst
 
 
