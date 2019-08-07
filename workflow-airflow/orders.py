@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a9
+# Version: 0.1a10
 
 import glob
 import datetime
@@ -9,7 +9,6 @@ from subprocess import check_call
 
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 import arrow
 import boto3
@@ -132,7 +131,7 @@ def upload_orders_to_s3():
 
 default_args = {
     'owner': 'korniichuk',
-    'start_date': datetime.datetime(2019, 8, 5)
+    'start_date': datetime.datetime(2019, 8, 6)
 }
 
 with DAG('orders',
@@ -157,9 +156,11 @@ with DAG('orders',
                                  python_callable=calc_orders)
     upload_orders_to_s3 = PythonOperator(task_id='upload_orders_to_s3',
                                          python_callable=upload_orders_to_s3)
-    orders = DummyOperator(task_id='orders')
+    path = '/tmp/airflow-orders'
+    command = 'rm -rf {}'.format(path)
+    clean = BashOperator(task_id='clean', bash_command=command)
 
 download_from_s3 >> decompress >> preprocess_jsons >> merge_csvs
 merge_csvs >> upload_transactions_to_s3
 merge_csvs >> calc_orders >> upload_orders_to_s3
-[upload_transactions_to_s3, upload_orders_to_s3] >> orders
+[upload_transactions_to_s3, upload_orders_to_s3] >> clean
