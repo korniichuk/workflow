@@ -1,5 +1,5 @@
 # Name: workflow-preprocess-json
-# Version: 0.1a3
+# Version: 0.1a4
 
 import gzip
 from io import StringIO
@@ -13,7 +13,7 @@ import s3fs
 
 def lambda_handler(event, context):
 
-    src = context['src']
+    src = event['src']
     result = {}
 
     try:

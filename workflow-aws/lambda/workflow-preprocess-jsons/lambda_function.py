@@ -1,7 +1,8 @@
 # Name: workflow-preprocess-jsons
-# Version: 0.1a1
+# Version: 0.1a2
 
 import json
+import os
 
 import boto3
 
@@ -9,7 +10,7 @@ import boto3
 def lambda_handler(event, context):
 
     bucket_name = 'korniichuk.demo'
-    lmbd_name = 'workflow-decompress-single'
+    lmbd_name = 'workflow-preprocess-json'
     result = {'keys': []}
 
     s3 = boto3.resource('s3')
@@ -18,7 +19,12 @@ def lambda_handler(event, context):
         key = obj.key
         if key.startswith('workflow/input/') and key.endswith('.gz'):
             result['keys'].append(key)
-            r = lmbd.invoke(FunctionName=lmbd_name, InvocationType='Event')
+            src = os.path.join(bucket_name, key)
+            data = {'src': src}
+            payload = json.dumps(data)
+            lmbd.invoke(FunctionName=lmbd_name,
+                        InvocationType='Event',
+                        Payload=payload)
     result['num'] = len(result['keys'])
     return {
         'statusCode': 200,

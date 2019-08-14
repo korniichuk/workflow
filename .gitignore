@@ -102,3 +102,8 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Lambda
+workflow-aws/lambda/workflow-preprocess-json*
+!workflow-aws/lambda/workflow-preprocess-json/lambda_function.py
+!workflow-aws/lambda/workflow-preprocess-json/requirements.txt
