@@ -1,5 +1,5 @@
 # Name: workflow-preprocess-json
-# Version: 0.1a2
+# Version: 0.1a3
 
 import gzip
 from io import StringIO
@@ -13,10 +13,9 @@ import s3fs
 
 def lambda_handler(event, context):
 
-    src_bucket_name = 'korniichuk.demo'
-    src_key = 'workflow/input/11.gz'
-    src = os.path.join(src_bucket_name, src_key)
+    src = context['src']
     result = {}
+
     try:
         fs = s3fs.S3FileSystem(anon=False)
         with fs.open(src, 'rb') as f:
@@ -29,7 +28,9 @@ def lambda_handler(event, context):
     buff = StringIO()
     df.to_csv(buff, index=False)
     dst_bucket_name = 'korniichuk.tmp'
-    dst_key = 'workflow-orders/csv/11.csv'
+    src_filename = os.path.basename(src)
+    dst_filename = src_filename.replace('.gz', '.csv')
+    dst_key = 'workflow-orders/csv/{}'.format(dst_filename)
     try:
         s3 = boto3.resource('s3')
         s3.Object(dst_bucket_name, dst_key).put(Body=buff.getvalue())
