@@ -8,4 +8,4 @@ def git():
     """Configure Git"""
 
     local("git remote rm origin")
-    local("git remote add origin https://korniichuk@github.com/korniichuk/worflow.git")
+    local("git remote add origin https://korniichuk@github.com/korniichuk/workflow.git")
