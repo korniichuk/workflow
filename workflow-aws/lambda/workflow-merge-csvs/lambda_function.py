@@ -1,5 +1,5 @@
 # Name: workflow-merge-csvs
-# Version: 0.1a3
+# Version: 0.1a4
 
 from io import BytesIO, StringIO
 import json
@@ -51,7 +51,7 @@ def lambda_handler(event, context):
             keys.append(key)
     csvs = [BytesIO(s3.Object(src_bucket, key).get()['Body'].read())
             for key in keys]
-    df = pd.concat([pd.read_csv(csv) for csv in csvs])
+    df = pd.concat([pd.read_csv(csv, parse_dates=['date']) for csv in csvs])
     buff = StringIO()
     df.to_csv(buff, index=False)
     s3.Object(dst_bucket, dst_key).put(Body=buff.getvalue())
