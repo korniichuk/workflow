@@ -99,7 +99,8 @@ class MergeCSVs(luigi.Task):
         dir_abs_path = self.input().path
         os.chdir(dir_abs_path)
         csvs = [i for i in glob.glob('*.{}'.format('csv'))]
-        df = pd.concat([pd.read_csv(csv) for csv in csvs])
+        df = pd.concat(
+                [pd.read_csv(csv, parse_dates=['date']) for csv in csvs])
         dst = os.path.join(self.input().path, self.dst_filename)
         df.to_csv(dst, index=False)
         # Reset cwd
