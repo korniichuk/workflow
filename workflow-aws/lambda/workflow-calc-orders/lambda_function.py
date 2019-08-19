@@ -1,5 +1,5 @@
 # Name: workflow-calc-orders
-# Version: 0.1a3
+# Version: 0.1a4
 
 from io import BytesIO, StringIO
 import json
@@ -36,13 +36,14 @@ def lambda_handler(event, context):
     dst_filename = 'orders_{}.csv'.format(date)
     dst_key = 'workflow/output/{}'.format(dst_filename)
     dst = 's3://' + os.path.join(dst_bucket, dst_key)
-    result['dst'] = dst
+    result['path'] = dst
     if exists_in_s3(dst_bucket, dst_key):
         return {
             'statusCode': 200,
             'body': json.dumps(result)
         }
-    src = event['src']
+    body = json.loads(event['body'])
+    src = body['path']
     src_bucket = src.replace('s3://', '').split('/')[0]
     src_key = src.replace('s3://', '')[len(src_bucket)+1:]
     s3 = boto3.resource('s3')

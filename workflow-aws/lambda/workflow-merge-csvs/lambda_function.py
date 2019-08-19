@@ -1,5 +1,5 @@
 # Name: workflow-merge-csvs
-# Version: 0.1a4
+# Version: 0.1a5
 
 from io import BytesIO, StringIO
 import json
@@ -36,7 +36,7 @@ def lambda_handler(event, context):
     dst_filename = 'transactions_{}.csv'.format(date)
     dst_key = 'workflow/output/{}'.format(dst_filename)
     dst = 's3://' + os.path.join(dst_bucket, dst_key)
-    result['dst'] = dst
+    result['path'] = dst
     if exists_in_s3(dst_bucket, dst_key):
         return {
             'statusCode': 200,
