@@ -1,0 +1,31 @@
+{
+  "Comment": "orders ver. 0.1a1",
+  "StartAt": "preprocess-jsons",
+  "States": {
+    "preprocess-jsons": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:eu-west-1:539199393808:function:workflow-preprocess-jsons",
+      "Next": "wait"
+    },
+    "wait": {
+      "Type": "Wait",
+      "Seconds": 5,
+      "Next": "merge-csvs"
+    },
+    "merge-csvs": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:eu-west-1:539199393808:function:workflow-merge-csvs",
+      "Next": "calc-orders"
+    },
+    "calc-orders": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:eu-west-1:539199393808:function:workflow-calc-orders",
+      "Next": "clean"
+    },
+    "clean": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:eu-west-1:539199393808:function:workflow-clean",
+      "End": true
+    }
+  }
+}
