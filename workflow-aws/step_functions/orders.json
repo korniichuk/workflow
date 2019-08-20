@@ -1,5 +1,5 @@
 {
-  "Comment": "orders ver. 0.1a1",
+  "Comment": "orders ver. 0.1a1 by Ruslan Korniichuk",
   "StartAt": "preprocess-jsons",
   "States": {
     "preprocess-jsons": {
