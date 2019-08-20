@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a12
+# Version: 0.1a13
 
 import glob
 import datetime
@@ -16,18 +16,18 @@ import botocore
 import pandas as pd
 
 
-def exists_in_s3(bucket_name, path):
+def exists_in_s3(bucket, key):
     """Does object exist in S3 bucket"""
 
     s3 = boto3.resource('s3')
     try:
-        s3.Object(bucket_name, path).load()
+        s3.Object(bucket, key).load()
     except botocore.exceptions.ClientError as e:
         if e.response['Error']['Code'] == '404':
             return False
         else:
             msg = 'Error: {} object checking in {} S3 bucket is failed'.format(
-                    path, bucket_name)
+                    key, bucket)
             print(msg)
             return False
     else:
@@ -103,15 +103,15 @@ def merge_csvs(**context):
 
 
 def upload_transactions_to_s3(**context):
-    bucket_name = 'korniichuk.demo'
+    dst_bucket = 'korniichuk.demo'
     src = context['ti'].xcom_pull(task_ids='merge_csvs')
-    dst_dirname = 'workflow/output'
     dst_filename = os.path.basename(src)
-    dst = os.path.join(dst_dirname, dst_filename)
-    if not exists_in_s3(bucket_name, dst):
+    dst_dirname = 'workflow/output'
+    dst_key = os.path.join(dst_dirname, dst_filename)
+    if not exists_in_s3(dst_bucket, dst_key):
         s3 = boto3.resource('s3')
-        s3.Bucket(bucket_name).upload_file(src, dst)
-    return dst
+        s3.Bucket(dst_bucket).upload_file(src, dst_key)
+    return dst_key
 
 
 def calc_orders(**context):
@@ -132,15 +132,15 @@ def calc_orders(**context):
 
 
 def upload_orders_to_s3(**context):
-    bucket_name = 'korniichuk.demo'
+    dst_bucket = 'korniichuk.demo'
     src = context['ti'].xcom_pull(task_ids='calc_orders')
     dst_dirname = 'workflow/output'
     dst_filename = os.path.basename(src)
-    dst = os.path.join(dst_dirname, dst_filename)
-    if not exists_in_s3(bucket_name, dst):
+    dst_key = os.path.join(dst_dirname, dst_filename)
+    if not exists_in_s3(dst_bucket, dst_key):
         s3 = boto3.resource('s3')
-        s3.Bucket(bucket_name).upload_file(src, dst)
-    return dst
+        s3.Bucket(dst_bucket).upload_file(src, dst_key)
+    return dst_key
 
 
 default_args = {
