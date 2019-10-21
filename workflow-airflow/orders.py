@@ -144,7 +144,7 @@ def upload_orders_to_s3(**context):
 
 
 default_args = {
-    'owner': 'korniichuk',
+    'owner': 'Ruslan Korniichuk',
     'start_date': datetime.datetime(2019, 8, 6)
 }
 
