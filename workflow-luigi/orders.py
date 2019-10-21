@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # Version: 0.1a9
+# Owner: Ruslan Korniichuk
 
 import glob
 import os
