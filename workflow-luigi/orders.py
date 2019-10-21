@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Version: 0.1a9
+# Version: 0.1a10
 # Owner: Ruslan Korniichuk
 
 import glob
@@ -188,3 +188,8 @@ class Orders(ExternalProgramTask):
 
 if __name__ == '__main__':
     luigi.run()
+
+# DownloadFromS3 >> Decompress >> PreprocessJSONs >> MergeCSVs
+# MergeCSVs >> UploadTransactionsToS3
+# MergeCSVs >> CalcOrders >> UploadOrdersToS3
+# [UploadTransactionsToS3, UploadOrdersToS3] >> Orders
