@@ -1,4 +1,4 @@
-apache-airflow==1.10.3
+apache-airflow==1.10.11
 arrow==0.14.4
 boto3==1.9.199
 botocore==1.12.199
