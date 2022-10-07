@@ -1,4 +1,4 @@
-apache-airflow==2.3.4
+apache-airflow==2.4.1
 arrow==0.15.1
 boto3==1.9.199
 pandas==0.25.0
